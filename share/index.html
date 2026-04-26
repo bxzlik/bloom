@@ -165,21 +165,37 @@ body{
   var permalink = p.get('permalink') || '';
   var title     = p.get('title')     || 'Трек';
   var artist    = p.get('artist')    || '';
-  var cover     = p.get('cover')     || '';
 
   document.getElementById('title').textContent  = title;
   document.getElementById('artist').textContent = artist;
   document.title = title ? title + ' — Bloom' : 'Bloom';
 
-  if(cover){
+  function applyCover(url) {
+    if (!url) return;
+    // hi-res вариант обложки
+    var hires = url.replace('-large.', '-t500x500.');
     var img = new Image();
-    img.onload = function(){
-      document.getElementById('cover').innerHTML = '<img src="'+cover+'" alt="">';
+    img.onload = function() {
+      document.getElementById('cover').innerHTML = '<img src="' + hires + '" alt="">';
       var bg = document.getElementById('bgBlur');
-      bg.style.backgroundImage = 'url('+cover+')';
+      bg.style.backgroundImage = 'url(' + hires + ')';
       bg.style.opacity = '1';
     };
-    img.src = cover;
+    img.onerror = function() {
+      // fallback на оригинальный размер
+      document.getElementById('cover').innerHTML = '<img src="' + url + '" alt="">';
+      var bg = document.getElementById('bgBlur');
+      bg.style.backgroundImage = 'url(' + url + ')';
+      bg.style.opacity = '1';
+    };
+    img.src = hires;
+  }
+
+  if (permalink) {
+    fetch('https://soundcloud.com/oembed?url=' + encodeURIComponent(permalink) + '&format=json')
+      .then(function(r) { return r.json(); })
+      .then(function(d) { if (d && d.thumbnail_url) applyCover(d.thumbnail_url); })
+      .catch(function() {});
   }
 
   if(permalink){
