@@ -170,32 +170,24 @@ body{
   document.getElementById('artist').textContent = artist;
   document.title = title ? title + ' — Bloom' : 'Bloom';
 
-  function applyCover(url) {
-    if (!url) return;
-    // hi-res вариант обложки
-    var hires = url.replace('-large.', '-t500x500.');
+  var cover = p.get('cover') || '';
+
+  if (cover) {
+    // SC CDN даёт -large (100x100), пробуем hi-res t500x500
+    var hires = cover.replace('-large.', '-t500x500.').replace('-small.', '-t500x500.');
     var img = new Image();
     img.onload = function() {
-      document.getElementById('cover').innerHTML = '<img src="' + hires + '" alt="">';
+      document.getElementById('cover').innerHTML = '<img src="' + img.src + '" alt="">';
       var bg = document.getElementById('bgBlur');
-      bg.style.backgroundImage = 'url(' + hires + ')';
+      bg.style.backgroundImage = 'url(' + img.src + ')';
       bg.style.opacity = '1';
     };
     img.onerror = function() {
-      // fallback на оригинальный размер
-      document.getElementById('cover').innerHTML = '<img src="' + url + '" alt="">';
-      var bg = document.getElementById('bgBlur');
-      bg.style.backgroundImage = 'url(' + url + ')';
-      bg.style.opacity = '1';
+      if (img.src !== cover) {
+        img.src = cover; // fallback на оригинальный размер
+      }
     };
     img.src = hires;
-  }
-
-  if (permalink) {
-    fetch('https://soundcloud.com/oembed?url=' + encodeURIComponent(permalink) + '&format=json')
-      .then(function(r) { return r.json(); })
-      .then(function(d) { if (d && d.thumbnail_url) applyCover(d.thumbnail_url); })
-      .catch(function() {});
   }
 
   if(permalink){
