@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bloom</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{
+  min-height:100dvh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#0f0f0f;
+  color:#fff;
+  font-family:-apple-system,'SF Pro Display','SF Pro Text','Segoe UI','Roboto',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+
+/* blurred bg cover */
+#bgBlur{
+  position:fixed;inset:0;z-index:0;
+  background-size:cover;background-position:center;
+  filter:blur(60px) brightness(.28) saturate(1.4);
+  transform:scale(1.1);
+  opacity:0;
+  transition:opacity .6s ease;
+}
+
+.card{
+  position:relative;z-index:1;
+  width:320px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:18px;
+  padding:28px 24px 24px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  backdrop-filter:blur(24px);
+  box-shadow:0 32px 80px rgba(0,0,0,.7);
+}
+
+/* logo row */
+.logo{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:24px;
+  align-self:flex-start;
+}
+.logo-icon{
+  width:30px;height:30px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.logo-name{font-size:15px;font-weight:700;color:#fff;letter-spacing:-.2px;}
+
+/* cover */
+.cover{
+  width:110px;height:110px;
+  border-radius:12px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.07);
+  overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:16px;
+  flex-shrink:0;
+}
+.cover img{width:100%;height:100%;object-fit:cover;display:block;}
+.cover svg{opacity:.25;}
+
+/* text */
+.track-title{
+  font-size:15px;font-weight:700;
+  text-align:center;line-height:1.3;
+  color:#fff;
+  margin-bottom:4px;
+  max-width:100%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.track-artist{
+  font-size:12px;color:rgba(255,255,255,.4);
+  text-align:center;
+  margin-bottom:22px;
+  max-width:100%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* buttons */
+.btn{
+  width:100%;padding:10px 0;
+  border-radius:10px;border:none;
+  font-size:13px;font-weight:600;
+  cursor:pointer;
+  transition:opacity .15s,transform .1s,background .15s;
+  text-decoration:none;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  letter-spacing:-.1px;
+}
+.btn:active{transform:scale(.97);}
+.btn-primary{
+  background:rgba(255,255,255,.1);
+  color:#fff;
+  border:1px solid rgba(255,255,255,.1);
+  margin-bottom:8px;
+}
+.btn-primary:hover{background:rgba(255,255,255,.15);}
+.btn-sc{
+  background:none;
+  color:rgba(255,255,255,.35);
+  font-size:12px;font-weight:500;
+  padding:6px 0;
+}
+.btn-sc:hover{color:rgba(255,255,255,.65);}
+.btn-sc[style*="none"]{display:none!important;}
+
+.sep{
+  width:100%;height:1px;
+  background:rgba(255,255,255,.06);
+  margin:12px 0;
+}
+</style>
+</head>
+<body>
+<div id="bgBlur"></div>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-linecap="round">
+        <path d="M9 18V5l12-2v13"/>
+        <circle cx="6" cy="18" r="3"/>
+        <circle cx="18" cy="16" r="3"/>
+      </svg>
+    </div>
+    <span class="logo-name">Bloom</span>
+  </div>
+
+  <div class="cover" id="cover">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <path d="M9 18V5l12-2v13"/>
+      <circle cx="6" cy="18" r="3"/>
+      <circle cx="18" cy="16" r="3"/>
+    </svg>
+  </div>
+
+  <div class="track-title" id="title">Трек</div>
+  <div class="track-artist" id="artist"></div>
+
+  <button class="btn btn-primary" onclick="tryOpen()">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5C7 3.4 8.2 2.7 9.1 3.3l12 7.5c.9.5.9 1.9 0 2.4l-12 7.5C8.2 21.3 7 20.6 7 19.5V4.5z"/></svg>
+    Открыть в Bloom
+  </button>
+
+  <div class="sep" id="sep" style="display:none"></div>
+  <button class="btn btn-sc" id="scBtn" style="display:none" onclick="openSc()">Открыть на SoundCloud →</button>
+</div>
+
+<script>
+(function(){
+  var p = new URLSearchParams(location.search);
+  var scId      = p.get('scId')      || '';
+  var permalink = p.get('permalink') || '';
+  var title     = p.get('title')     || 'Трек';
+  var artist    = p.get('artist')    || '';
+  var cover     = p.get('cover')     || '';
+
+  document.getElementById('title').textContent  = title;
+  document.getElementById('artist').textContent = artist;
+  document.title = title ? title + ' — Bloom' : 'Bloom';
+
+  if(cover){
+    var img = new Image();
+    img.onload = function(){
+      document.getElementById('cover').innerHTML = '<img src="'+cover+'" alt="">';
+      var bg = document.getElementById('bgBlur');
+      bg.style.backgroundImage = 'url('+cover+')';
+      bg.style.opacity = '1';
+    };
+    img.src = cover;
+  }
+
+  if(permalink){
+    document.getElementById('sep').style.display  = '';
+    document.getElementById('scBtn').style.display = '';
+  }
+
+  var bloomUrl = 'bloom://play?' + p.toString();
+
+  window.tryOpen = function(){
+    window.location.href = bloomUrl;
+  };
+
+  window.openSc = function(){
+    if(permalink) window.open(permalink, '_blank');
+  };
+
+  // авторедирект при загрузке
+  tryOpen();
+})();
+</script>
+</body>
+</html>
