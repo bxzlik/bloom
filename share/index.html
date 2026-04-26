@@ -161,19 +161,46 @@ body{
 <script>
 (function(){
   var p = new URLSearchParams(location.search);
-  var scId      = p.get('scId')      || '';
+  var type      = p.get('type') || 'track'; // track | artist | playlist | album
   var permalink = p.get('permalink') || '';
-  var title     = p.get('title')     || 'Трек';
-  var artist    = p.get('artist')    || '';
+  var cover     = p.get('cover')     || '';
 
-  document.getElementById('title').textContent  = title;
-  document.getElementById('artist').textContent = artist;
-  document.title = title ? title + ' — Bloom' : 'Bloom';
+  // Заголовок и подзаголовок зависят от типа
+  var mainTitle, subTitle, badge, bloomUrl;
+  if (type === 'artist') {
+    mainTitle = p.get('name')   || 'Артист';
+    subTitle  = '';
+    badge     = 'АРТИСТ';
+    bloomUrl  = 'bloom://artist?' + p.toString();
+  } else if (type === 'playlist') {
+    mainTitle = p.get('title')  || 'Плейлист';
+    subTitle  = p.get('artist') || '';
+    badge     = 'ПЛЕЙЛИСТ';
+    bloomUrl  = 'bloom://playlist?' + p.toString();
+  } else if (type === 'album') {
+    mainTitle = p.get('title')  || 'Альбом';
+    subTitle  = p.get('artist') || '';
+    badge     = 'АЛЬБОМ';
+    bloomUrl  = 'bloom://album?' + p.toString();
+  } else {
+    mainTitle = p.get('title')  || 'Трек';
+    subTitle  = p.get('artist') || '';
+    badge     = null;
+    bloomUrl  = 'bloom://play?' + p.toString();
+  }
 
-  var cover = p.get('cover') || '';
+  document.getElementById('title').textContent  = mainTitle;
+  document.getElementById('artist').textContent = subTitle;
+  document.title = mainTitle + ' — Bloom';
+  if (badge) {
+    var badgeEl = document.createElement('div');
+    badgeEl.textContent = badge;
+    badgeEl.style.cssText = 'font-size:9px;font-weight:800;letter-spacing:.1em;color:rgba(255,255,255,.4);text-transform:uppercase;margin-bottom:6px;text-align:center';
+    document.getElementById('title').before(badgeEl);
+  }
 
+  // Обложка
   if (cover) {
-    // SC CDN даёт -large (100x100), пробуем hi-res t500x500
     var hires = cover.replace('-large.', '-t500x500.').replace('-small.', '-t500x500.');
     var img = new Image();
     img.onload = function() {
@@ -182,30 +209,19 @@ body{
       bg.style.backgroundImage = 'url(' + img.src + ')';
       bg.style.opacity = '1';
     };
-    img.onerror = function() {
-      if (img.src !== cover) {
-        img.src = cover; // fallback на оригинальный размер
-      }
-    };
+    img.onerror = function() { if (img.src !== cover) img.src = cover; };
     img.src = hires;
   }
 
-  if(permalink){
-    document.getElementById('sep').style.display  = '';
+  // Ссылка на SC
+  if (permalink) {
+    document.getElementById('sep').style.display   = '';
     document.getElementById('scBtn').style.display = '';
   }
 
-  var bloomUrl = 'bloom://play?' + p.toString();
+  window.tryOpen = function(){ window.location.href = bloomUrl; };
+  window.openSc  = function(){ if (permalink) window.open(permalink, '_blank'); };
 
-  window.tryOpen = function(){
-    window.location.href = bloomUrl;
-  };
-
-  window.openSc = function(){
-    if(permalink) window.open(permalink, '_blank');
-  };
-
-  // авторедирект при загрузке
   tryOpen();
 })();
 </script>
