@@ -11,19 +11,90 @@ body{
   display:flex;
   align-items:center;
   justify-content:center;
+  position:relative;
   background:#000;
   color:#fff;
   font-family:-apple-system,'SF Pro Display','SF Pro Text','Segoe UI','Roboto',system-ui,sans-serif;
   -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+
+.bg-particles{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+}
+
+.cursor{
+  position:fixed;
+  top:0;
+  left:0;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:rgba(255,255,255,.92);
+  pointer-events:none;
+  z-index:3;
+  opacity:0;
+  transform:translate3d(-50%,-50%,0);
+  transition:width .18s ease,height .18s ease,opacity .18s ease,background-color .18s ease;
+}
+
+.cursor::after{
+  content:"";
+  position:absolute;
+  inset:50% auto auto 50%;
+  width:32px;
+  height:32px;
+  border:1.5px solid rgba(255,255,255,.24);
+  border-radius:50%;
+  transform:translate(-50%,-50%);
+  transition:width .2s ease,height .2s ease,border-color .2s ease,opacity .2s ease;
+}
+
+.cursor.is-visible{
+  opacity:1;
+}
+
+.cursor.is-hover{
+  width:10px;
+  height:10px;
+  background:rgba(255,255,255,1);
+}
+
+.cursor.is-hover::after{
+  width:42px;
+  height:42px;
+  border-color:rgba(255,255,255,.36);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body.cursor-enabled,
+  body.cursor-enabled button{
+    cursor:none;
+  }
 }
 
 .card{
+  position:relative;
+  z-index:1;
   width:380px;
   background:#000;
   border:1px solid rgba(255,255,255,.09);
   border-radius:28px;
   overflow:hidden;
   padding:20px 20px 22px;
+  opacity:0;
+  transform:translateY(18px) scale(.985);
+  transform-origin:center center;
+  transition:opacity .65s ease,transform .8s cubic-bezier(.18,.8,.22,1);
+  will-change:transform,opacity;
+}
+
+.card.is-visible{
+  opacity:1;
 }
 
 /* header */
@@ -114,6 +185,8 @@ body{
 </style>
 </head>
 <body>
+<canvas class="bg-particles" id="bgParticles"></canvas>
+<div class="cursor" id="cursor"></div>
 <div class="card">
   <div class="card-header">
     <div class="card-avatar">
@@ -150,6 +223,255 @@ body{
 
 <script>
 (function(){
+  var canvas = document.getElementById('bgParticles');
+  var ctx = canvas.getContext('2d');
+  var customCursor = document.getElementById('cursor');
+  var card = document.querySelector('.card');
+  var particles = [];
+  var pointer = {
+    active: false,
+    x: 0,
+    y: 0,
+    radius: 140
+  };
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
+  var particleCount = 34;
+  var rafId = 0;
+  var cursorRafId = 0;
+  var cardRafId = 0;
+  var cursorEnabled = false;
+  var cursorTarget = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  var cursorCurrent = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  var cardPointer = { x: 0, y: 0 };
+  var cardTilt = { x: 0, y: 0 };
+  var cardVisible = false;
+  var maxTilt = 1.6;
+
+  function resizeCanvas() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    createParticles();
+  }
+
+  function randomBetween(min, max) {
+    return min + Math.random() * (max - min);
+  }
+
+  function createParticles() {
+    particles = [];
+    for (var i = 0; i < particleCount; i++) {
+      particles.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        vx: randomBetween(-0.08, 0.08),
+        vy: randomBetween(-0.08, 0.08),
+        size: randomBetween(0.8, 2.2),
+        alpha: randomBetween(0.14, 0.34)
+      });
+    }
+  }
+
+  function updateParticles() {
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+    for (var i = 0; i < particles.length; i++) {
+      var dot = particles[i];
+      dot.x += dot.vx;
+      dot.y += dot.vy;
+
+      if (dot.x < -20) dot.x = window.innerWidth + 20;
+      if (dot.x > window.innerWidth + 20) dot.x = -20;
+      if (dot.y < -20) dot.y = window.innerHeight + 20;
+      if (dot.y > window.innerHeight + 20) dot.y = -20;
+
+      if (pointer.active) {
+        var dx = dot.x - pointer.x;
+        var dy = dot.y - pointer.y;
+        var distance = Math.sqrt(dx * dx + dy * dy) || 1;
+
+        if (distance < pointer.radius) {
+          var force = (pointer.radius - distance) / pointer.radius;
+          dot.x += (dx / distance) * force * 0.9;
+          dot.y += (dy / distance) * force * 0.9;
+        }
+      }
+
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, dot.size, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,' + dot.alpha + ')';
+      ctx.fill();
+    }
+
+    rafId = window.requestAnimationFrame(updateParticles);
+  }
+
+  function startParticles() {
+    resizeCanvas();
+    if (!reduceMotion.matches) {
+      updateParticles();
+    }
+  }
+
+  function stopParticles() {
+    if (rafId) {
+      window.cancelAnimationFrame(rafId);
+      rafId = 0;
+    }
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+  }
+
+  function renderCursor() {
+    cursorCurrent.x += (cursorTarget.x - cursorCurrent.x) * 0.22;
+    cursorCurrent.y += (cursorTarget.y - cursorCurrent.y) * 0.22;
+    customCursor.style.transform = 'translate3d(' + cursorCurrent.x + 'px,' + cursorCurrent.y + 'px,0) translate(-50%,-50%)';
+    cursorRafId = window.requestAnimationFrame(renderCursor);
+  }
+
+  function applyCardTransform() {
+    var baseY = cardVisible ? 0 : 18;
+    var baseScale = cardVisible ? 1 : 0.985;
+    var rotateX = reduceMotion.matches ? 0 : cardTilt.y;
+    var rotateY = reduceMotion.matches ? 0 : cardTilt.x;
+    card.style.transform =
+      'translateY(' + baseY + 'px) ' +
+      'scale(' + baseScale + ') ' +
+      'perspective(1200px) ' +
+      'rotateX(' + rotateX + 'deg) ' +
+      'rotateY(' + rotateY + 'deg)';
+  }
+
+  function renderCardTilt() {
+    cardTilt.x += (cardPointer.x - cardTilt.x) * 0.1;
+    cardTilt.y += (cardPointer.y - cardTilt.y) * 0.1;
+    applyCardTransform();
+    cardRafId = window.requestAnimationFrame(renderCardTilt);
+  }
+
+  function startCardTilt() {
+    if (!cardRafId && !reduceMotion.matches) {
+      cardRafId = window.requestAnimationFrame(renderCardTilt);
+    }
+  }
+
+  function stopCardTilt() {
+    cardPointer.x = 0;
+    cardPointer.y = 0;
+    if (cardRafId) {
+      window.cancelAnimationFrame(cardRafId);
+      cardRafId = 0;
+    }
+    applyCardTransform();
+  }
+
+  function revealCard() {
+    window.requestAnimationFrame(function() {
+      cardVisible = true;
+      card.classList.add('is-visible');
+      applyCardTransform();
+    });
+  }
+
+  function startCursor() {
+    if (cursorEnabled) return;
+    cursorEnabled = true;
+    document.body.classList.add('cursor-enabled');
+    customCursor.classList.add('is-visible');
+    cursorRafId = window.requestAnimationFrame(renderCursor);
+  }
+
+  function stopCursor() {
+    cursorEnabled = false;
+    document.body.classList.remove('cursor-enabled');
+    customCursor.classList.remove('is-visible');
+    customCursor.classList.remove('is-hover');
+    if (cursorRafId) {
+      window.cancelAnimationFrame(cursorRafId);
+      cursorRafId = 0;
+    }
+  }
+
+  function syncCursorMode() {
+    if (finePointer.matches) {
+      startCursor();
+      startCardTilt();
+    } else {
+      stopCursor();
+      stopCardTilt();
+    }
+  }
+
+  window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('mousemove', function(event) {
+    pointer.active = true;
+    pointer.x = event.clientX;
+    pointer.y = event.clientY;
+    cursorTarget.x = event.clientX;
+    cursorTarget.y = event.clientY;
+    if (cursorEnabled) {
+      customCursor.classList.add('is-visible');
+    }
+  });
+  window.addEventListener('mouseleave', function() {
+    pointer.active = false;
+    customCursor.classList.remove('is-visible');
+    cardPointer.x = 0;
+    cardPointer.y = 0;
+  });
+  window.addEventListener('touchstart', function() {
+    pointer.active = false;
+    stopCursor();
+  }, { passive: true });
+
+  document.addEventListener('mouseover', function(event) {
+    if (!cursorEnabled) return;
+    var target = event.target.closest('button, a');
+    customCursor.classList.toggle('is-hover', !!target);
+  });
+
+  card.addEventListener('mousemove', function(event) {
+    if (reduceMotion.matches) return;
+    var rect = card.getBoundingClientRect();
+    var offsetX = (event.clientX - rect.left) / rect.width - 0.5;
+    var offsetY = (event.clientY - rect.top) / rect.height - 0.5;
+    cardPointer.x = offsetX * maxTilt * 2;
+    cardPointer.y = offsetY * maxTilt * -2;
+  });
+
+  card.addEventListener('mouseleave', function() {
+    cardPointer.x = 0;
+    cardPointer.y = 0;
+  });
+
+  if (typeof finePointer.addEventListener === 'function') {
+    finePointer.addEventListener('change', syncCursorMode);
+  }
+
+  if (typeof reduceMotion.addEventListener === 'function') {
+    reduceMotion.addEventListener('change', function(event) {
+      if (event.matches) {
+        stopParticles();
+        resizeCanvas();
+        stopCardTilt();
+      } else {
+        startParticles();
+        if (finePointer.matches) {
+          startCardTilt();
+        }
+      }
+      applyCardTransform();
+    });
+  }
+
+  startParticles();
+  syncCursorMode();
+  applyCardTransform();
+  revealCard();
+
   var p = new URLSearchParams(location.search);
   var type      = p.get('type') || 'track';
   var permalink = p.get('permalink') || '';
