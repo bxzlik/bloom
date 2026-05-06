@@ -182,6 +182,27 @@ body{
 }
 .footer-open:hover{opacity:.82;}
 .footer-open:active{transform:scale(.93);}
+
+.profile-stats{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-bottom:20px;
+}
+.ps-cell{
+  background:rgba(255,255,255,.06);
+  border-radius:10px;
+  padding:12px 10px 10px;
+}
+.ps-val{
+  font-size:20px;font-weight:800;color:#fff;
+  margin-bottom:4px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.ps-lbl{
+  font-size:8px;font-weight:700;letter-spacing:.1em;
+  color:rgba(255,255,255,.35);text-transform:uppercase;
+}
 </style>
 </head>
 <body>
@@ -480,10 +501,7 @@ body{
   var mainTitle, subTitle, actionText, badgeText, bloomUrl;
   if (type === 'profile') {
     mainTitle  = p.get('name')   || 'Пользователь';
-    var plays  = p.get('plays')  || '0';
-    var top    = p.get('artist') || '';
-    subTitle   = plays !== '0' ? plays + ' прослушиваний' : '';
-    if (top) subTitle = subTitle ? subTitle + ' · ' + top : top;
+    subTitle   = '';
     actionText = 'shared their profile';
     badgeText  = 'ПРОФИЛЬ';
     bloomUrl   = 'bloom://profile?' + p.toString();
@@ -519,6 +537,20 @@ body{
   document.getElementById('title').textContent      = mainTitle;
   document.getElementById('artist').textContent     = subTitle;
   document.title = mainTitle + ' — Bloom';
+
+  if (type === 'profile') {
+    var tracksN = p.get('tracks') || '0';
+    var plays2  = p.get('plays')  || '0';
+    var time2   = p.get('time')   || '0 мин';
+    var top2    = p.get('artist') || '—';
+    document.getElementById('artist').outerHTML =
+      '<div class="profile-stats">' +
+        '<div class="ps-cell"><div class="ps-val">' + tracksN + '</div><div class="ps-lbl">Треков</div></div>' +
+        '<div class="ps-cell"><div class="ps-val">' + plays2  + '</div><div class="ps-lbl">Прослушано</div></div>' +
+        '<div class="ps-cell"><div class="ps-val">' + time2   + '</div><div class="ps-lbl">Время прослушивания</div></div>' +
+        '<div class="ps-cell"><div class="ps-val" style="font-size:14px">' + top2 + '</div><div class="ps-lbl">Любимый исполнитель</div></div>' +
+      '</div>';
+  }
 
   if (badgeText) {
     var b = document.getElementById('badge');
