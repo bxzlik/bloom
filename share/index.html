@@ -183,6 +183,25 @@ body{
 .footer-open:hover{opacity:.82;}
 .footer-open:active{transform:scale(.93);}
 
+.profile-row{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  margin-bottom:14px;
+}
+.pr-avatar{
+  width:64px;height:64px;
+  border-radius:50%;
+  background:#1a1a1a;
+  flex-shrink:0;
+  overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;font-weight:700;color:rgba(255,255,255,.4);
+}
+.pr-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
+.pr-info{flex:1;min-width:0;}
+.pr-name{font-size:22px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2;}
+.pr-bio{font-size:12px;color:rgba(255,255,255,.36);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .profile-stats{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -503,10 +522,8 @@ body{
     mainTitle  = p.get('name')   || 'Пользователь';
     subTitle   = '';
     actionText = 'shared their profile';
-    badgeText  = 'ПРОФИЛЬ';
+    badgeText  = null;
     bloomUrl   = 'bloom://profile?' + p.toString();
-    document.getElementById('cover').innerHTML =
-      '<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" style="opacity:.18"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
   } else if (type === 'artist') {
     mainTitle  = p.get('name')   || 'Артист';
     subTitle   = '';
@@ -543,6 +560,27 @@ body{
     var plays2  = p.get('plays')  || '0';
     var time2   = p.get('time')   || '0 мин';
     var top2    = p.get('artist') || '—';
+    var avatar  = p.get('avatar') || '';
+    var bio     = p.get('bio')    || '';
+
+    // replace cover with profile row
+    var coverEl = document.getElementById('cover');
+    var avatarHtml = avatar
+      ? '<img src="' + avatar + '" alt="" onerror="this.parentNode.textContent=\'' + (mainTitle||'?').charAt(0).toUpperCase() + '\'">'
+      : (mainTitle||'?').charAt(0).toUpperCase();
+    coverEl.className = 'profile-row';
+    coverEl.removeAttribute('style');
+    coverEl.innerHTML =
+      '<div class="pr-avatar">' + avatarHtml + '</div>' +
+      '<div class="pr-info"><div class="pr-name">' + mainTitle + '</div>' +
+      (bio ? '<div class="pr-bio">' + bio + '</div>' : '') +
+      '</div>';
+
+    // hide badge and title (name is already in profile row)
+    document.getElementById('badge').style.display = 'none';
+    document.getElementById('title').style.display = 'none';
+
+    // replace artist with stats grid
     document.getElementById('artist').outerHTML =
       '<div class="profile-stats">' +
         '<div class="ps-cell"><div class="ps-val">' + tracksN + '</div><div class="ps-lbl">Треков</div></div>' +
