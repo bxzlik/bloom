@@ -613,7 +613,7 @@ body{
   window.tryOpen = function(){ window.location.href = bloomUrl; };
   window.openSc  = function(){ if (permalink) window.open(permalink, '_blank'); };
 
-  tryOpen();
+  if (type !== 'profile') tryOpen();
 })();
 </script>
 </body>
